@@ -96,6 +96,14 @@ class OBDCommand:
         r = OBDResponse(self, messages)
         if messages:
             r.value = self.decode(messages)
+            pid=bytearray.fromhex(r.command.command.decode('ascii'))
+            pid[0]|=0x40
+            #mode 22 pids
+            if (pid[0] & 0x3F == 0x22):
+                r.validity=(r.messages[0].data[0:3]==pid)
+            #standard pids
+            else:
+                r.validity=(r.messages[0].data[0:2]==pid)
         else:
             logger.info(str(self) + " did not receive any acceptable messages")
 
