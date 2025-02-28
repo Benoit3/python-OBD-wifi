@@ -55,6 +55,15 @@ def <name>(<list_of_messages>):
 def drop(_):
     return None
 
+#get raw value
+def raw_value(messages):
+    # chop off mode and PID bytes for mode 22 PIDs
+    if ( (messages[0].data[0] & 0x2F)==0x22):
+        return messages[0].data[3:]
+    #chop off mode and PID bytes for all other PIDs
+    else:
+        return messages[0].data[2:]
+
 
 # data in, data out
 def noop(messages):
@@ -71,6 +80,10 @@ def pid(messages):
 def raw_string(messages):
     return "\n".join([m.raw() for m in messages])
 
+# return string
+def string(messages):
+    return raw_value(messages).decode('ascii')
+
 
 """
 Some decoders are simple and are already implemented in the Units And Scaling
@@ -85,7 +98,7 @@ def uas(id_):
 
 
 def decode_uas(messages, id_):
-    d = messages[0].data[2:]  # chop off mode and PID bytes
+    d = raw_value(messages)  # chop off mode and PID bytes
     return UAS_IDS[id_](d)
 
 
@@ -97,7 +110,7 @@ Return pint Quantities
 
 # 0 to 100 %
 def percent(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0]
     v = v * 100.0 / 255.0
     return v * Unit.percent
@@ -105,7 +118,7 @@ def percent(messages):
 
 # -100 to 100 %
 def percent_centered(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0]
     v = (v - 128) * 100.0 / 128.0
     return v * Unit.percent
@@ -113,7 +126,7 @@ def percent_centered(messages):
 
 # -40 to 215 C
 def temp(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d)
     v = v - 40
     return Unit.Quantity(v, Unit.celsius)  # non-multiplicative unit
@@ -121,7 +134,7 @@ def temp(messages):
 
 # -128 to 128 mA
 def current_centered(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d[2:4])
     v = (v / 256.0) - 128
     return v * Unit.milliampere
@@ -129,14 +142,14 @@ def current_centered(messages):
 
 # 0 to 1.275 volts
 def sensor_voltage(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0] / 200.0
     return v * Unit.volt
 
 
 # 0 to 8 volts
 def sensor_voltage_big(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d[2:4])
     v = (v * 8.0) / 65535
     return v * Unit.volt
@@ -144,7 +157,7 @@ def sensor_voltage_big(messages):
 
 # 0 to 765 kPa
 def fuel_pressure(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0]
     v = v * 3
     return v * Unit.kilopascal
@@ -152,7 +165,7 @@ def fuel_pressure(messages):
 
 # 0 to 255 kPa
 def pressure(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0]
     return v * Unit.kilopascal
 
@@ -160,7 +173,7 @@ def pressure(messages):
 # -8192 to 8192 Pa
 def evap_pressure(messages):
     # decode the twos complement
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     a = twos_comp(d[0], 8)
     b = twos_comp(d[1], 8)
     v = ((a * 256.0) + b) / 4.0
@@ -169,7 +182,7 @@ def evap_pressure(messages):
 
 # 0 to 327.675 kPa
 def abs_evap_pressure(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d)
     v = v / 200.0
     return v * Unit.kilopascal
@@ -177,7 +190,7 @@ def abs_evap_pressure(messages):
 
 # -32767 to 32768 Pa
 def evap_pressure_alt(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d)
     v = v - 32767
     return v * Unit.pascal
@@ -185,7 +198,7 @@ def evap_pressure_alt(messages):
 
 # -64 to 63.5 degrees
 def timing_advance(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0]
     v = (v - 128) / 2.0
     return v * Unit.degree
@@ -193,7 +206,7 @@ def timing_advance(messages):
 
 # -210 to 301 degrees
 def inject_timing(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d)
     v = (v - 26880) / 128.0
     return v * Unit.degree
@@ -201,7 +214,7 @@ def inject_timing(messages):
 
 # 0 to 2550 grams/sec
 def max_maf(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = d[0]
     v = v * 10
     return v * Unit.gps
@@ -209,7 +222,7 @@ def max_maf(messages):
 
 # 0 to 3212 Liters/hour
 def fuel_rate(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d)
     v = v * 0.05
     return v * Unit.liters_per_hour
@@ -217,7 +230,7 @@ def fuel_rate(messages):
 
 # special bit encoding for PID 13
 def o2_sensors(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     bits = BitArray(d)
     return (
         (),  # bank 0 is invalid
@@ -227,13 +240,13 @@ def o2_sensors(messages):
 
 
 def aux_input_status(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     return ((d[0] >> 7) & 1) == 1  # first bit indicate PTO status
 
 
 # special bit encoding for PID 1D
 def o2_sensors_alt(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     bits = BitArray(d)
     return (
         (),  # bank 0 is invalid
@@ -246,7 +259,7 @@ def o2_sensors_alt(messages):
 
 # 0 to 25700 %
 def absolute_load(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     v = bytes_to_int(d)
     v *= 100.0 / 255.0
     return v * Unit.percent
@@ -274,7 +287,7 @@ Return objects, lists, etc
 
 
 def status(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     bits = BitArray(d)
 
     #            ┌Components not ready
@@ -315,7 +328,7 @@ def status(messages):
 
 
 def fuel_status(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     bits = BitArray(d)
 
     status_1 = ""
@@ -344,7 +357,7 @@ def fuel_status(messages):
 
 
 def air_status(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     bits = BitArray(d)
 
     status = None
@@ -357,7 +370,7 @@ def air_status(messages):
 
 
 def obd_compliance(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     i = d[0]
 
     v = None
@@ -371,7 +384,7 @@ def obd_compliance(messages):
 
 
 def fuel_type(messages):
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     i = d[0]  # todo, support second fuel system
 
     v = None
@@ -408,7 +421,7 @@ def parse_dtc(_bytes):
 
 def single_dtc(messages):
     """ parses a single DTC from a message """
-    d = messages[0].data[2:]
+    d = raw_value(messages)
     return parse_dtc(d)
 
 
