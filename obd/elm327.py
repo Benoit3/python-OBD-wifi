@@ -101,6 +101,9 @@ class ELM327:
     # going to be less picky about the time required to detect it.
     _TRY_BAUDS = [38400, 9600, 230400, 115200, 57600, 19200]
 
+    #Timeout on socket operaion
+    _SOCKET_TIMEOUT=2
+
     def __init__(self, addr, port, protocol, timeout,
                  check_voltage=True, start_low_power=False):
         """Initializes port by resetting device and gettings supported PIDs. """
@@ -120,6 +123,7 @@ class ELM327:
         # ------------- open port -------------
         try:
             self.__port = socket.socket()
+            self.__port.settimeout(self._SOCKET_TIMEOUT)
             self.__port.connect((addr, port))
         except serial.SerialException as e:
             self.__error(e)
