@@ -106,6 +106,7 @@ class OBDCommand:
                 r.validity=(r.messages[0].data[0:2]==pid)
         else:
             logger.info(str(self) + " did not receive any acceptable messages")
+            r.validity=False
 
         return r
 
